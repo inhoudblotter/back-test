@@ -1,0 +1,39 @@
+services:
+  database:
+    image: 'postgres:alpine'
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./src/db/config/postgresql.conf:/postgresql.conf
+      - ./src/db/config/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    command: postgres -c config_file=/postgresql.conf
+    environment:
+      - TZ=GMT+5
+      - PGTZ=GMT+5
+      - PGDATA=postgresql
+      - POSTGRES_PASSWORD=${DB_ROOT_PASS}
+      - POSTGRES_USER=${DB_POSTGRES_USER}
+      - POSTGRES_DB=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASS}
+      - DB_PORT=${DB_PORT}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -d ${DB_NAME} -U ${DB_USER} -p 5432']
+      start_period: 15s
+      interval: 10s
+      timeout: 10s
+      retries: 7
+    ports:
+      - ${DB_PORT}:5432
+  api:
+    build: ./
+    restart: always
+    environment:
+      - DB_PORT=5432
+      - DB_HOST=db
+    depends_on:
+      database:
+        condition: service_healthy
+    links:
+      - database:db
